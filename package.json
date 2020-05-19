@@ -1,0 +1,31 @@
+{
+  "name": "cloudwatch-rule-poc",
+  "version": "1.0.0",
+  "description": "test",
+  "main": "./src/handler/create-event-schedule.js",
+  "scripts": {
+    "build": "webpack",
+    "cdk": "cdk"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "aws-sdk": "^2.678.0",
+    "bunyan": "^1.8.12"
+  },
+  "devDependencies": {
+    "@aws-cdk/aws-apigateway": "^1.39.0",
+    "@aws-cdk/aws-lambda-event-sources": "^1.39.0",
+    "@aws-cdk/core": "^1.39.0",
+    "@types/aws-lambda": "^8.10.51",
+    "@types/bunyan": "^1.8.6",
+    "@types/node": "^14.0.1",
+    "@types/webpack": "^4.41.13",
+    "aws-cdk": "^1.39.0",
+    "ts-loader": "^7.0.4",
+    "ts-node": "^8.10.1",
+    "typescript": "^3.9.2",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.11"
+  }
+}
