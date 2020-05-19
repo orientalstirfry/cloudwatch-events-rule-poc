@@ -4,8 +4,8 @@ import { join } from 'path';
 const config: webpack.Configuration = {
   mode: 'production',
   entry: {
-    'create-event-schedule': join(__dirname, './src/handlers', 'create-event-schedule'),
-    'scheduled-event': join(__dirname, './src/handlers', 'scheduled-event')
+    'create-scheduled-event-rule': join(__dirname, './src/handlers', 'create-scheduled-event-rule'),
+    'handle-scheduled-event': join(__dirname, './src/handlers', 'handle-scheduled-event')
   },
   devtool: 'source-map',
   resolve: {

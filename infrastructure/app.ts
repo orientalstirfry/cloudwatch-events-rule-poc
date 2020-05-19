@@ -11,7 +11,7 @@ class Infrastructure extends App {
       account: process.env.AWS_DEFAULT_ACCOUNT,
       region: process.env.AWS_DEFAULT_REGION,
     };
-    new PocStack(this, "cloudwatch-rule-creation-poc-stack", { env });    
+    new PocStack(this, "rsc-cloudwatch-rule-creation-poc-stack", { env });    
   }
 }
 
@@ -19,11 +19,19 @@ class PocStack extends Stack {
   constructor(app: App, id: string, props?:StackProps) {
     super(app, id, props);
 
-    const eventsRole = new Role(this, `LinkedInRSC_JobSync_Role`, {
-      assumedBy: new ServicePrincipal('events.amazonaws.com'),
-      roleName: 'LinkedInRscCloudwatchEventsPocRole',
+    // Provision lambda for processing events triggered by a Cloudwatch Rule
+    const scheduledEventHandler = new Function(this, 'rsc-scheduled-events-handler', {
+      functionName: 'rsc-scheduled-events-handler',
+      code: new AssetCode('dist'),
+      handler: 'handle-scheduled-event.handle',
+      runtime: Runtime.NODEJS_12_X,
+    });
+    scheduledEventHandler.addPermission('RscCloudWatchEventsPermissionForRscScheduledEventsHandler', {
+      principal: new ServicePrincipal('events.amazonaws.com'),
+      action: 'lambda:InvokeFunction'
     });
 
+    // Provision lambda (with API Gateway) for creating Cloudwatch Rules
     const cloudwatchEventsPolicy = new PolicyStatement({
       effect: Effect.ALLOW,
       resources: [`arn:aws:events:${this.region}:*:*`],
@@ -32,18 +40,9 @@ class PocStack extends Stack {
           "events:DeleteRule",
           "events:EnableRule",
           "events:DisableRule",
-          "events:PutTargets",
+          "events:PutTargets"
       ]
     });
-    const cloudwatchLogsPolicy = new PolicyStatement({
-      effect: Effect.ALLOW,
-      resources: [`arn:aws:logs:${this.region}:*:*`],
-      actions: [
-          "logs:CreateLogStream",
-          "logs:CreateLogGroup",
-          "logs:PutLogEvents"
-      ]
-    });    
     const passRolePolicy = new PolicyStatement({
       effect: Effect.ALLOW,
       resources: [`arn:aws:iam::*:role/*`],
@@ -51,33 +50,21 @@ class PocStack extends Stack {
         "iam:PassRole"
       ]
     })
-    eventsRole.addToPolicy(cloudwatchEventsPolicy);
-    eventsRole.addToPolicy(cloudwatchLogsPolicy);
-    eventsRole.addToPolicy(passRolePolicy);
-
-    const scheduledEventHandler = new Function(this, 'scheduled-events-handler', {
-      functionName: 'scheduled-events-handler',
-      code: new AssetCode('dist'),
-      handler: 'scheduled-event.handle',
-      runtime: Runtime.NODEJS_12_X,
-    });
-    scheduledEventHandler.addToRolePolicy(cloudwatchEventsPolicy);
-
-    const api = new RestApi(this, 'linkedin-rsc-cloudwatch-rule-poc', {
-      restApiName: 'LinkedIn RSC Cloudwatch Rule POC'
+    const api = new RestApi(this, 'rsc-cloudwatch-events-poc', {
+      restApiName: 'RSC Cloudwatch Events POC'
     });
 
-    new HttpLambda(this, 'create-schedule-rule', {
+    new HttpLambda(this, 'rsc-create-scheduled-rule', {
       addCors: true,
       api,
-      endpoint: 'create-schedule-rule',
-      functionName: 'create-schedule-rule',
-      handlerName: 'create-event-schedule.handle',
+      endpoint: 'rsc-create-scheduled-event-rule',
+      functionName: 'rsc-create-scheduled-event-rule',
+      handlerName: 'create-scheduled-event-rule.handle',
       httpMethod: 'POST',
-      policies: [cloudwatchEventsPolicy, cloudwatchLogsPolicy, passRolePolicy],
+      policies: [cloudwatchEventsPolicy, passRolePolicy],
       environment: {
-        SCHEDULED_EVENT_HANDLER_FUNCTION_ARN: scheduledEventHandler.functionArn,
-        EVENTS_ROLE_ARN: eventsRole.roleArn
+        SCHEDULED_EVENTS_HANDLER_FUNCTION_NAME: 'rsc-scheduled-events-handler',
+        SCHEDULED_EVENTS_HANDLER_FUNCTION_ARN: scheduledEventHandler.functionArn
       }
     });
   }

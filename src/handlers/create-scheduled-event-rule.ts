@@ -1,5 +1,5 @@
 import { APIGatewayProxyHandler } from 'aws-lambda';
-import { CloudWatchEvents } from 'aws-sdk';
+import { CloudWatchEvents, Lambda } from 'aws-sdk';
 import logger from '../lib/logger';
 import * as httpResponse from '../lib/http-response';
 
@@ -8,27 +8,37 @@ export const handle: APIGatewayProxyHandler = async (_event, _context) => {
 
   try {
     const instanceId = 543;
-    const ruleName = `LinkedIn_RSC_JobSync_${instanceId}`;
+    const ruleName = `rsc-scheduled-sync-for-tenant-${instanceId}`;
     const cloudwatchEvents = new CloudWatchEvents();
 
+    // Create CloudWatch Event Rule with associated Target
     const ruleResponse = await createRule(cloudwatchEvents, {
       Name: ruleName,
-      Description: `5 minute rule to trigger LinkedIn RSC Job Sync for instance ${instanceId}`,
-      ScheduleExpression: 'rate(5 minutes)',
+      Description: `1 minute rule to trigger LinkedIn RSC Job Sync for instance ${instanceId}`,
+      ScheduleExpression: 'rate(1 minute)',
       State: 'ENABLED',
-      RoleArn: process.env.EVENTS_ROLE_ARN
     });
 
+    const scheduledEventData = `{ "instanceId" : ${instanceId} }`;
     const ruleTarget = await createTarget(cloudwatchEvents, {
       Rule: ruleName,
       Targets: [
         {
-          Arn: process.env.SCHEDULED_EVENT_HANDLER_FUNCTION_ARN,
-          Id: `${ruleName}_Target`,
-          Input: `{ "instanceId" : ${instanceId} }`
+          Arn: process.env.SCHEDULED_EVENTS_HANDLER_FUNCTION_ARN,
+          Id: `${ruleName}-target`,
+          Input: scheduledEventData
         }
       ]
     });
+
+    // Trigger initial run of scheduled event
+    const lambda = new Lambda();
+    lambda.invoke({
+      FunctionName: process.env.SCHEDULED_EVENTS_HANDLER_FUNCTION_NAME,
+      InvocationType: 'Event',
+      Payload: scheduledEventData
+  },function(_err,_data){});
+
 
     return httpResponse.ok({ data: 'Cloudwatch Events Rule create successfully'}, true);
   } catch (error) {
