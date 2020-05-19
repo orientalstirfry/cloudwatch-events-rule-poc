@@ -63,7 +63,7 @@ class PocStack extends Stack {
       httpMethod: 'POST',
       policies: [cloudwatchEventsPolicy, passRolePolicy],
       environment: {
-        SCHEDULED_EVENTS_HANDLER_FUNCTION_NAME: 'rsc-scheduled-events-handler',
+        SCHEDULED_EVENTS_HANDLER_FUNCTION_NAME: scheduledEventHandler.functionName,
         SCHEDULED_EVENTS_HANDLER_FUNCTION_ARN: scheduledEventHandler.functionArn
       }
     });
